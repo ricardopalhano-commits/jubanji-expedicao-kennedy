@@ -12,18 +12,31 @@
 </head>
 <body>
   <h1 class="sr">Jubanji: Expedição dos Biomas</h1>
+  <button id="btn-rank" class="sec flutuante" type="button">🏆 Ranking (Tab)</button>
+
   <main>
     <section id="menu">
       <img class="banner" src="/img/menu.jpg" alt="Mundo Jubanji: biomas do jogo">
       <div class="lado">
-      <form id="inicio">
-        <label><span class="rotulo">Nome do explorador</span>
-          <input id="nome" required maxlength="30" autocomplete="off">
-        </label>
-        <button type="submit">Começar expedição</button>
-      </form>
-      <p class="como">Mova o lobo com as setas ← → (ou arrastando o dedo). São 10 fases: pegue os suprimentos, desvie dos perigos e responda às perguntas da escola. A cada fase o jogo fica mais difícil!</p>
-      <button id="instalar" class="sec" hidden>Instalar app</button>
+        <div class="col">
+          <form id="inicio">
+            <label><span class="rotulo">Nome do explorador</span>
+              <input id="nome" required maxlength="30" autocomplete="off">
+            </label>
+            <button type="submit">Começar expedição</button>
+          </form>
+          <button id="instalar" class="sec" hidden>Instalar app</button>
+        </div>
+        <div class="col">
+          <h2>Como jogar</h2>
+          <ul class="como">
+            <li>Mova o lobo com as setas ← → (ou arrastando o dedo).</li>
+            <li>Pegue os suprimentos 🍎 e desvie dos perigos 🪨 🐍.</li>
+            <li>Responda às perguntas da escola sobre o tema de cada cenário.</li>
+            <li>São 10 fases, e a cada fase o jogo fica mais difícil!</li>
+            <li>Aperte <strong>TAB</strong> para ver o ranking.</li>
+          </ul>
+        </div>
       </div>
     </section>
 
@@ -48,12 +61,16 @@
       <p id="msg" role="status"></p>
       <button id="again">Jogar de novo</button>
     </section>
-
-    <section id="rank">
-      <h2>Ranking dos exploradores</h2>
-      <ol id="lista"></ol>
-    </section>
   </main>
+
+  <div id="rank" class="modal" role="dialog" aria-modal="true" aria-labelledby="rank-t" hidden>
+    <div class="card">
+      <h2 id="rank-t">Ranking dos exploradores</h2>
+      <ol id="lista"></ol>
+      <button id="fechar-rank" class="sec" type="button">Fechar (Tab ou Esc)</button>
+    </div>
+  </div>
+
   <script src="/audio.js"></script>
   <script src="/perguntas.js"></script>
   <script src="/app.js"></script>

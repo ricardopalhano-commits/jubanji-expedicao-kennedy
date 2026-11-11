@@ -93,6 +93,7 @@ function iniciarFase() {
 
 function loop(t) {
   if (!est || !est.rodando) return;
+  if (est.pausado) { est.ultimo = t; requestAnimationFrame(loop); return; }
   const dt = Math.min((t - est.ultimo) / 1000, 0.05);
   est.ultimo = t;
   atualizar(dt); desenhar();
@@ -212,7 +213,7 @@ async function vitoria() {
   $('#msg').textContent = txt;
   try {
     await api('/api/expedicoes', { method: 'POST', body: JSON.stringify({ jogador, pontos: est.pts, segundos: seg }) });
-    $('#msg').textContent = txt + ' Pontuação salva no ranking.';
+    $('#msg').textContent = txt + ' Pontuação salva no ranking (aperte TAB para ver).';
     carregar();
   } catch (e) { $('#msg').textContent = txt + ' Não foi possível salvar: ' + e.message; }
 }
@@ -226,6 +227,8 @@ function mover(e) {
 cv.addEventListener('pointermove', mover);
 cv.addEventListener('pointerdown', mover);
 addEventListener('keydown', (e) => {
+  if (e.key === 'Tab') { e.preventDefault(); alternarRank(); return; }
+  if (e.key === 'Escape') { alternarRank(false); return; }
   if (e.key === 'ArrowLeft' || e.key === 'a') keys.l = true;
   if (e.key === 'ArrowRight' || e.key === 'd') keys.r = true;
   if (est && est.rodando && e.key.startsWith('Arrow')) e.preventDefault();
@@ -243,6 +246,23 @@ $('#inicio').addEventListener('submit', (e) => {
 $('#again').addEventListener('click', novoJogo);
 $('#retry').addEventListener('click', novoJogo);
 $('#voltar').addEventListener('click', () => { est = null; Som.musica(false); $('#gameover').hidden = true; abrir('menu'); scrollTo(0, 0); });
+
+// ---------- Janela do ranking (TAB) ----------
+function alternarRank(abrir) {
+  const caixa = $('#rank'), ab = abrir === undefined ? caixa.hidden : abrir;
+  if (ab === !caixa.hidden) return;
+  caixa.hidden = !ab;
+  if (ab) {
+    carregar();
+    if (est && est.rodando) { est.pausado = true; est.pausaIni = Date.now(); }   // pausa o jogo
+    $('#fechar-rank').focus();
+  } else if (est && est.pausado) {
+    est.pausado = false; est.t0 += Date.now() - est.pausaIni; est.ultimo = performance.now();
+  }
+}
+$('#btn-rank').addEventListener('click', () => alternarRank());
+$('#fechar-rank').addEventListener('click', () => alternarRank(false));
+$('#rank').addEventListener('click', (e) => { if (e.target.id === 'rank') alternarRank(false); });
 
 // ---------- Ranking (consultar, editar, excluir) ----------
 async function carregar() {

@@ -56,3 +56,20 @@ li .n{font-size:1.2rem}.m{font-size:1rem}
 .bt button{font-size:.95rem}
 .barra-som{display:flex;justify-content:flex-end;max-width:960px;margin:.6rem auto 0}
 .barra-som button{font-size:1rem;padding:.5rem .9rem}
+
+/* ---- Menu: imagem em cima; nome à esquerda e instruções à direita ---- */
+main{padding-top:3.4rem}
+#menu{grid-template-columns:1fr;gap:1.5rem}
+.banner{max-width:900px;margin:0 auto}
+.lado{display:grid;gap:1.5rem}
+.col{display:grid;gap:1rem;align-content:start}
+.col h2{margin:0}
+@media (min-width:820px){.lado{grid-template-columns:1fr 1fr;gap:2.5rem;max-width:900px;margin:0 auto;width:100%}}
+ul.como{margin:0;padding-left:1.3rem;display:block}
+.como li{background:none;border:0;border-radius:0;padding:0;display:list-item;margin-bottom:.5rem}
+
+/* ---- Ranking como janela (abre com TAB) ---- */
+.flutuante{position:fixed;top:.6rem;right:.6rem;z-index:10;background:var(--fundo);font-size:1rem;padding:.5rem .9rem}
+.modal{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:1rem;background:rgba(8,16,10,.9)}
+.modal .card{background:var(--painel);border:2px solid var(--cor);border-radius:10px;width:min(680px,100%);max-height:88vh;overflow:auto;padding:1.1rem;display:grid;gap:.9rem}
+.modal .card h2{margin:0}
