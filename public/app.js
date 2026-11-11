@@ -1,29 +1,41 @@
 const $ = (s) => document.querySelector(s);
-const W = 880, H = 480, META = 8;
-const cv = $('#cv'), cx = cv.getContext('2d');
+const W = 880, H = 480, MAXV = 5;
 
+const BONS = ['🍎', '🍌', '💧', '🍉', '🥭', '🍇'];
+const RUINS = ['🪨', '🐍', '🦂', '🌵', '🕷️', '🔥', '☄️'];   // mais perigos nas fases avançadas
+const NIVEL = { facil: { n: 'Fácil', pts: 50 }, medio: { n: 'Médio', pts: 75 }, dificil: { n: 'Difícil', pts: 100 } };
+// Nível das 2 perguntas de cada uma das 10 fases (fica mais difícil)
+const NIVEIS = [['facil', 'facil'], ['facil', 'facil'], ['facil', 'medio'], ['medio', 'medio'], ['medio', 'medio'],
+  ['medio', 'medio'], ['medio', 'dificil'], ['dificil', 'dificil'], ['dificil', 'dificil'], ['dificil', 'dificil']];
+
+// bg: qual imagem (0 = trilha, 1 = quatro biomas), zoom, foco horizontal/vertical e cor de ambiente
 const FASES = [
-  { nome: 'Floresta Tropical', img: '/img/fase1.jpg', bons: ['🍎', '💧', '🍌'], ruins: ['🪨', '🐍'], perguntas: [] },
-  { nome: 'Savana e Deserto', img: '/img/fase2.jpg', bons: ['💧', '🍉', '🥭'], ruins: ['🌵', '🦂'], perguntas: [] }
+  { nome: 'Trilha da Floresta', bg: { img: 0, zoom: 1, fx: .5, fy: .5 } },
+  { nome: 'Ruínas Antigas', bg: { img: 1, zoom: 1.7, fx: 0, fy: .6 } },
+  { nome: 'Savana Dourada', bg: { img: 1, zoom: 1.7, fx: .38, fy: .6 } },
+  { nome: 'Entardecer na Savana', bg: { img: 1, zoom: 1.7, fx: .5, fy: .5, tint: 'rgba(255,120,40,.22)' } },
+  { nome: 'Pântano Sombrio', bg: { img: 1, zoom: 1.7, fx: .72, fy: .6 } },
+  { nome: 'Deserto Rochoso', bg: { img: 1, zoom: 1.7, fx: 1, fy: .6 } },
+  { nome: 'Deserto à Noite', bg: { img: 1, zoom: 1.7, fx: 1, fy: .4, tint: 'rgba(10,20,70,.5)' } },
+  { nome: 'Pântano da Meia-Noite', bg: { img: 1, zoom: 1.7, fx: .72, fy: .4, tint: 'rgba(5,10,40,.55)' } },
+  { nome: 'Selva Misteriosa', bg: { img: 0, zoom: 1.5, fx: .1, fy: .5, tint: 'rgba(0,30,10,.35)' } },
+  { nome: 'Templo Final', bg: { img: 0, zoom: 1.8, fx: .05, fy: .6, tint: 'rgba(255,200,60,.18)' } }
 ];
-const POR_FASE = 2;
+const fundos = ['/img/fase1.jpg', '/img/fase2.jpg'].map((s) => { const i = new Image(); i.src = s; return i; });
 
-// Sorteia perguntas diferentes do banco a cada partida
-function sortearPerguntas() {
-  const pool = [...BANCO];
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
-  }
-  FASES.forEach((f, i) => {
-    f.perguntas = pool.slice(i * POR_FASE, (i + 1) * POR_FASE)
-      .map(([p, certa, ...erradas]) => ({ p, o: [certa, ...erradas], c: 0 }));
-  });
-}
-const fundos = FASES.map((f) => { const i = new Image(); i.src = f.img; return i; });
+// Dificuldade do jogo: cresce com o número da fase (i) e com os erros nas perguntas (dif)
+const cfg = (i, dif) => ({
+  meta: 6 + i,                                                     // suprimentos para passar (6 a 15)
+  v: Math.max(80, 110 + i * 22 + dif * 20),                        // velocidade de queda
+  spawn: Math.max(0.3, Math.min(1.2, 0.8 - i * 0.04 - dif * 0.05)), // intervalo entre objetos
+  bom: Math.max(0.35, Math.min(0.8, 0.7 - i * 0.025 - dif * 0.04)), // chance de ser fruta
+  vx: i >= 4 ? (i - 3) * 25 : 0                                    // perigos se mexem de lado
+});
+const rotuloDif = (d) => (d <= -2 ? 'Muito fácil' : d === -1 ? 'Fácil' : d === 0 ? 'Normal' : d === 1 ? 'Difícil' : 'Muito difícil');
 
 let jogador = '', est = null;
 const keys = { l: false, r: false };
+const cv = $('#cv'), cx = cv.getContext('2d');
 
 async function api(url, opcoes = {}) {
   const r = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opcoes });
@@ -36,20 +48,37 @@ const esc = (t) => { const d = document.createElement('div'); d.textContent = t;
 const fmt = (s) => (s >= 60 ? `${Math.floor(s / 60)}min ${s % 60}s` : `${s}s`);
 const abrir = (id) => ['menu', 'jogo', 'fim'].forEach((x) => { $('#' + x).hidden = x !== id; });
 const sorte = (a) => a[Math.floor(Math.random() * a.length)];
+function embaralhar(a) {
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+
+// Sorteia perguntas diferentes do banco a cada partida, no nível de cada fase
+function sortearPerguntas() {
+  const pools = {};
+  Object.keys(BANCO).forEach((k) => { pools[k] = embaralhar([...BANCO[k]]); });
+  FASES.forEach((f, i) => {
+    f.perguntas = NIVEIS[i].map((t) => {
+      const [p, certa, ...erradas] = pools[t].pop();
+      return { p, o: [certa, ...erradas], c: 0, t };
+    });
+  });
+}
 
 // ---------- Jogo ----------
 function novoJogo() {
   sortearPerguntas();
-  est = { fase: 0, pts: 0, vidas: 3, col: 0, objs: [], flash: 0, spawn: 0, dif: 0, difIni: 0, aviso: null, avisoT: 0, rodando: false, ultimo: 0,
-    t0: Date.now(), wolf: { x: W / 2, alvo: W / 2 } };
+  est = { fase: 0, pts: 0, vidas: 3, col: 0, meta: 6, objs: [], flash: 0, spawn: 0, dif: 0, difIni: 0,
+    aviso: null, avisoT: 0, rodando: false, ultimo: 0, t0: Date.now(), wolf: { x: W / 2, alvo: W / 2 } };
   $('#quiz').hidden = true;
   $('#gameover').hidden = true;
   abrir('jogo');
   iniciarFase();
+  est.aviso = [{ t: `FASE 1: ${FASES[0].nome}`, c: '#f3ecd2' }]; est.avisoT = 3;
 }
 
 function iniciarFase() {
-  est.col = 0; est.objs = []; est.rodando = true; est.ultimo = performance.now();
+  est.col = 0; est.meta = cfg(est.fase, 0).meta; est.objs = []; est.rodando = true; est.ultimo = performance.now();
   requestAnimationFrame(loop);
 }
 
@@ -62,7 +91,7 @@ function loop(t) {
 }
 
 function atualizar(dt) {
-  const w = est.wolf, f = FASES[est.fase];
+  const w = est.wolf, c = cfg(est.fase, est.dif);
   if (keys.l) w.alvo = w.x - 300; else if (keys.r) w.alvo = w.x + 300;
   w.alvo = Math.max(40, Math.min(W - 40, w.alvo));
   const d = w.alvo - w.x;
@@ -70,15 +99,17 @@ function atualizar(dt) {
 
   est.spawn -= dt;
   if (est.spawn <= 0) {
-    est.spawn = Math.max(0.35, Math.min(1.1, 0.7 - est.dif * 0.08));
-    const bom = Math.random() < Math.max(0.4, Math.min(0.8, 0.65 - est.dif * 0.06));
-    est.objs.push({ x: 40 + Math.random() * (W - 80), y: -30, v: Math.max(80, 130 + Math.random() * 90 + est.fase * 40 + est.dif * 30),
-      bom, e: sorte(bom ? f.bons : f.ruins) });
+    est.spawn = c.spawn;
+    const bom = Math.random() < c.bom;
+    const perigos = RUINS.slice(0, 2 + Math.floor(est.fase * 0.6));
+    est.objs.push({ x: 40 + Math.random() * (W - 80), y: -30, v: c.v + Math.random() * 90, bom,
+      e: sorte(bom ? BONS : perigos), vx: bom ? 0 : (Math.random() < 0.5 ? -1 : 1) * c.vx * (0.4 + Math.random() * 0.6) });
   }
   est.flash = Math.max(0, est.flash - dt);
   est.avisoT = Math.max(0, est.avisoT - dt);
   est.objs = est.objs.filter((o) => {
-    o.y += o.v * dt;
+    o.y += o.v * dt; o.x += o.vx * dt;
+    if (o.x < 30 || o.x > W - 30) o.vx *= -1;
     if (Math.abs(o.x - w.x) < 42 && Math.abs(o.y - (H - 60)) < 44) {
       if (o.bom) { est.col++; est.pts += 10; } else { est.vidas--; est.flash = 0.3; }
       return false;
@@ -87,18 +118,17 @@ function atualizar(dt) {
   });
 
   if (est.vidas <= 0) derrota();
-  else if (est.col >= META) { est.rodando = false; perguntar(0); }
+  else if (est.col >= est.meta) { est.rodando = false; perguntar(0); }
 }
 
-const rotuloDif = (d) => (d <= -2 ? 'Muito fácil' : d === -1 ? 'Fácil' : d === 0 ? 'Normal' : d === 1 ? 'Difícil' : 'Muito difícil');
-
 function desenhar() {
-  const img = fundos[est.fase];
+  const b = FASES[est.fase].bg, img = fundos[b.img];
   if (img.complete && img.naturalWidth) {
-    const r = Math.max(W / img.naturalWidth, H / img.naturalHeight);
+    const r = Math.max(W / img.naturalWidth, H / img.naturalHeight) * b.zoom;
     const w = img.naturalWidth * r, h = img.naturalHeight * r;
-    cx.drawImage(img, (W - w) / 2, (H - h) / 2, w, h);
+    cx.drawImage(img, -(w - W) * b.fx, -(h - H) * b.fy, w, h);
   } else { cx.fillStyle = '#22372a'; cx.fillRect(0, 0, W, H); }
+  if (b.tint) { cx.fillStyle = b.tint; cx.fillRect(0, 0, W, H); }
 
   cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.font = '40px serif';
   est.objs.forEach((o) => cx.fillText(o.e, o.x, o.y));
@@ -107,30 +137,33 @@ function desenhar() {
   if (est.flash > 0) { cx.fillStyle = 'rgba(229,96,79,.35)'; cx.fillRect(0, 0, W, H); }
   cx.fillStyle = 'rgba(0,0,0,.6)'; cx.fillRect(0, 0, W, 38);
   cx.fillStyle = '#f3ecd2'; cx.font = 'bold 20px sans-serif'; cx.textAlign = 'left';
-  cx.fillText(`${FASES[est.fase].nome}     ❤️ ${est.vidas}     🎒 ${est.col}/${META}     ⭐ ${est.pts}`, 12, 20);
+  cx.fillText(`Fase ${est.fase + 1}/${FASES.length}     ❤️ ${est.vidas}     🎒 ${est.col}/${est.meta}     ⭐ ${est.pts}`, 12, 20);
   cx.textAlign = 'right'; cx.fillText('Dificuldade: ' + rotuloDif(est.dif), W - 12, 20);
+
   if (est.avisoT > 0 && est.aviso) {
-    cx.textAlign = 'center'; cx.fillStyle = 'rgba(0,0,0,.78)'; cx.fillRect(W / 2 - 300, 70, 600, 52);
-    cx.fillStyle = est.aviso.c; cx.font = 'bold 26px sans-serif'; cx.fillText(est.aviso.t, W / 2, 97);
+    const n = est.aviso.length;
+    cx.fillStyle = 'rgba(0,0,0,.78)'; cx.fillRect(W / 2 - 320, 60, 640, 16 + 36 * n);
+    cx.textAlign = 'center'; cx.font = 'bold 26px sans-serif';
+    est.aviso.forEach((l, k) => { cx.fillStyle = l.c; cx.fillText(l.t, W / 2, 86 + 36 * k); });
   }
 }
 
 // ---------- Perguntas ----------
 function perguntar(i) {
-  const f = FASES[est.fase], q = f.perguntas[i];
-  const ops = q.o.map((t, k) => ({ t, ok: k === q.c })).sort(() => Math.random() - 0.5);
+  const f = FASES[est.fase], q = f.perguntas[i], nv = NIVEL[q.t];
+  const ops = embaralhar(q.o.map((t, k) => ({ t, ok: k === q.c })));
   const box = $('#quiz'); box.hidden = false;
   box.innerHTML = `<div class="qcard">
-    <p class="qt">Pergunta da escola ${i + 1} de ${f.perguntas.length}</p>
+    <p class="qt">Fase ${est.fase + 1}: pergunta ${i + 1} de ${f.perguntas.length} · Nível ${nv.n} (+${nv.pts} pontos)</p>
     <h3>${q.p}</h3>
     ${ops.map((o, k) => `<button class="op" data-k="${k}">${o.t}</button>`).join('')}
     <p id="fb"></p></div>`;
   box.querySelectorAll('.op').forEach((b) => b.onclick = () => {
     box.querySelectorAll('.op').forEach((x) => { x.disabled = true; if (ops[x.dataset.k].ok) x.classList.add('certa'); });
     const certa = ops[b.dataset.k].ok, ultima = est.fase + 1 >= FASES.length;
-    if (certa) { est.pts += 50; est.dif = Math.max(-3, est.dif - 1); }
+    if (certa) { est.pts += nv.pts; est.dif = Math.max(-3, est.dif - 1); }
     else { b.classList.add('errada'); est.dif = Math.min(4, est.dif + 1); }
-    $('#fb').innerHTML = (certa ? 'Correto! +50 pontos' : 'Resposta errada. A certa ficou em verde.') +
+    $('#fb').innerHTML = (certa ? `Correto! +${nv.pts} pontos` : 'Resposta errada. A certa ficou em verde.') +
       (ultima ? '' : certa ? '<br><span class="dif-facil">✅ A fase ficou mais fácil!</span>'
                            : '<br><span class="dif-dificil">⚠️ ! A fase está mais difícil !</span>');
     setTimeout(() => (i + 1 < f.perguntas.length ? perguntar(i + 1) : proximaFase()), 1500);
@@ -140,20 +173,20 @@ function perguntar(i) {
 function proximaFase() {
   $('#quiz').hidden = true;
   const delta = est.dif - est.difIni; est.difIni = est.dif;
-  est.fase++;
-  if (est.fase >= FASES.length) vitoria();
-  else {
-    iniciarFase();
-    est.aviso = delta > 0 ? { t: '! A FASE ESTÁ MAIS DIFÍCIL !', c: '#ff7a6b' }
-      : delta < 0 ? { t: 'A FASE FICOU MAIS FÁCIL', c: '#5cc98a' } : null;
-    est.avisoT = 3.5;
-  }
+  const feita = est.fase; est.fase++;
+  if (est.fase >= FASES.length) { vitoria(); return; }
+  const linhas = [{ t: `FASE ${est.fase + 1}: ${FASES[est.fase].nome}`, c: '#f3ecd2' }];
+  if (delta > 0) linhas.push({ t: '! A FASE ESTÁ MAIS DIFÍCIL !', c: '#ff7a6b' });
+  else if (delta < 0) linhas.push({ t: 'A FASE FICOU MAIS FÁCIL', c: '#5cc98a' });
+  if ((feita + 1) % 3 === 0 && est.vidas < MAXV) { est.vidas++; linhas.push({ t: '❤️ +1 vida!', c: '#e0a526' }); }
+  iniciarFase();
+  est.aviso = linhas; est.avisoT = 3.5;
 }
 
 // ---------- Fim de jogo ----------
 function derrota() {
   est.rodando = false;
-  $('#gotxt').textContent = `${jogador}, as 3 vidas acabaram na fase ${est.fase + 1} e você fez ${est.pts} pontos. Só expedições completas entram no ranking.`;
+  $('#gotxt').textContent = `${jogador}, as vidas acabaram na fase ${est.fase + 1} de ${FASES.length} e você fez ${est.pts} pontos. Só expedições completas entram no ranking.`;
   $('#gameover').hidden = false;
   $('#retry').focus();
 }
@@ -162,7 +195,7 @@ async function vitoria() {
   est.pts += est.vidas * 20;
   const seg = Math.round((Date.now() - est.t0) / 1000);
   $('#imgfim').hidden = false; abrir('fim');
-  let txt = `Parabéns, ${jogador}! Você completou a expedição com ${est.pts} pontos em ${fmt(seg)}.`;
+  const txt = `Parabéns, ${jogador}! Você completou as ${FASES.length} fases com ${est.pts} pontos em ${fmt(seg)}.`;
   $('#msg').textContent = txt;
   try {
     await api('/api/expedicoes', { method: 'POST', body: JSON.stringify({ jogador, pontos: est.pts, segundos: seg }) });
