@@ -1,0 +1,60 @@
+// Banco de perguntas: [pergunta, resposta CERTA, errada 1, errada 2, errada 3]
+// Para adicionar uma pergunta nova, copie uma linha e troque os textos.
+const BANCO = [
+  // Geografia e biomas
+  ["Qual é a maior floresta tropical do mundo?", "Floresta Amazônica", "Taiga", "Mata de Araucárias", "Floresta do Congo"],
+  ["Qual destes animais é típico da savana africana?", "Zebra", "Pinguim", "Urso-polar", "Foca"],
+  ["Qual é o maior deserto quente do mundo?", "Saara", "Atacama", "Gobi", "Kalahari"],
+  ["Qual é o maior oceano do planeta?", "Oceano Pacífico", "Oceano Atlântico", "Oceano Índico", "Oceano Glacial Ártico"],
+  ["Qual rio é o mais volumoso do mundo?", "Rio Amazonas", "Rio Nilo", "Rio Mississippi", "Rio Yangtzé"],
+  ["Qual é a capital do Brasil?", "Brasília", "Rio de Janeiro", "São Paulo", "Salvador"],
+  ["Qual bioma brasileiro ocupa a maior área do país?", "Amazônia", "Cerrado", "Caatinga", "Pampa"],
+  ["Qual bioma brasileiro é a maior planície alagável do mundo?", "Pantanal", "Caatinga", "Pampa", "Mata Atlântica"],
+  ["Qual bioma exclusivamente brasileiro é típico do sertão nordestino?", "Caatinga", "Pampa", "Pantanal", "Cerrado"],
+  ["Qual continente é o mais frio do planeta?", "Antártida", "Ásia", "América do Norte", "Europa"],
+  ["Qual é a maior ilha do mundo?", "Groenlândia", "Madagascar", "Bornéu", "Islândia"],
+  ["Qual é a montanha mais alta do mundo?", "Monte Everest", "K2", "Aconcágua", "Kilimanjaro"],
+  ["Em qual continente fica o deserto do Saara?", "África", "Ásia", "América do Sul", "Oceania"],
+  ["Qual rio atravessa o Egito?", "Rio Nilo", "Rio Amazonas", "Rio Tâmisa", "Rio Danúbio"],
+  ["Qual linha imaginária divide a Terra em hemisfério Norte e Sul?", "Linha do Equador", "Trópico de Câncer", "Meridiano de Greenwich", "Trópico de Capricórnio"],
+  ["Qual meridiano divide a Terra em hemisfério Leste e Oeste?", "Meridiano de Greenwich", "Linha do Equador", "Trópico de Câncer", "Círculo Polar Ártico"],
+  // Animais e natureza
+  ["Qual animal é conhecido como \"navio do deserto\"?", "Camelo", "Cavalo", "Elefante", "Avestruz"],
+  ["Qual animal vive no gelo do Ártico?", "Urso-polar", "Camelo", "Zebra", "Onça-pintada"],
+  ["Qual é o maior animal terrestre do mundo?", "Elefante-africano", "Girafa", "Rinoceronte", "Hipopótamo"],
+  ["Qual é o maior mamífero do planeta?", "Baleia-azul", "Elefante", "Tubarão-branco", "Girafa"],
+  ["Qual é o animal terrestre mais rápido?", "Guepardo", "Leão", "Cavalo", "Avestruz"],
+  ["Qual ave não voa e vive na Antártida?", "Pinguim", "Avestruz", "Ema", "Gaivota"],
+  ["Qual destes animais é um réptil?", "Jacaré", "Sapo", "Golfinho", "Morcego"],
+  ["Qual destes animais é um anfíbio?", "Sapo", "Jacaré", "Baleia", "Tubarão"],
+  ["Como se chama o conjunto de seres vivos e ambiente que interagem em uma região?", "Ecossistema", "Átomo", "Galáxia", "Molécula"],
+  // Ciências
+  ["Qual gás as plantas liberam na fotossíntese?", "Oxigênio", "Gás carbônico", "Nitrogênio", "Hélio"],
+  ["Como se chama o processo em que as plantas produzem alimento usando a luz do Sol?", "Fotossíntese", "Respiração", "Digestão", "Evaporação"],
+  ["Qual é a principal fonte de energia da fotossíntese?", "Luz solar", "Vento", "Gelo", "Sal"],
+  ["Qual é o maior planeta do Sistema Solar?", "Júpiter", "Saturno", "Terra", "Marte"],
+  ["Qual planeta é conhecido como \"planeta vermelho\"?", "Marte", "Vênus", "Mercúrio", "Netuno"],
+  ["Qual é o satélite natural da Terra?", "Lua", "Sol", "Marte", "Vênus"],
+  ["Em que estado físico a água está no gelo?", "Sólido", "Líquido", "Gasoso", "Plasma"],
+  ["Quantos ossos tem o corpo de um adulto?", "206", "150", "300", "98"],
+  ["Qual órgão bombeia o sangue pelo corpo?", "Coração", "Pulmão", "Fígado", "Estômago"],
+  ["Qual vitamina o corpo produz com a ajuda da luz do Sol?", "Vitamina D", "Vitamina C", "Vitamina A", "Vitamina K"],
+  // História
+  ["Quem chegou ao Brasil em 1500, segundo a história oficial?", "Pedro Álvares Cabral", "Cristóvão Colombo", "Dom Pedro I", "Vasco da Gama"],
+  ["Em que ano o Brasil declarou independência?", "1822", "1500", "1889", "1888"],
+  ["Quem foi o primeiro presidente do Brasil?", "Deodoro da Fonseca", "Getúlio Vargas", "Dom Pedro II", "Juscelino Kubitschek"],
+  ["Em que ano foi proclamada a República no Brasil?", "1889", "1822", "1888", "1930"],
+  ["Qual povo construiu as pirâmides do Egito?", "Egípcios", "Romanos", "Gregos", "Maias"],
+  ["Qual civilização construiu a cidade de Machu Picchu?", "Inca", "Maia", "Asteca", "Egípcia"],
+  // Matemática
+  ["Quanto é 7 x 8?", "56", "54", "48", "64"],
+  ["Qual é a raiz quadrada de 81?", "9", "8", "7", "11"],
+  ["Quanto vale a soma dos ângulos internos de um triângulo?", "180 graus", "90 graus", "360 graus", "270 graus"],
+  ["Quanto é 25% de 200?", "50", "25", "75", "100"],
+  ["Quantos lados tem um hexágono?", "6", "5", "8", "7"],
+  // Português
+  ["Qual é o plural de \"cidadão\"?", "Cidadãos", "Cidadões", "Cidadães", "Cidadãoes"],
+  ["Qual palavra está escrita corretamente?", "Exceção", "Exeção", "Esceção", "Ezceção"],
+  ["Qual é o antônimo de \"gigante\"?", "Minúsculo", "Enorme", "Imenso", "Colossal"],
+  ["Qual classe de palavras indica ação?", "Verbo", "Substantivo", "Adjetivo", "Artigo"]
+];

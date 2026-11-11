@@ -1,5 +1,5 @@
-const CACHE = 'jubanji-v1';
-const ARQUIVOS = ['/', '/index.html', '/style.css', '/app.js', '/manifest.json',
+const CACHE = 'jubanji-v2';
+const ARQUIVOS = ['/', '/index.html', '/style.css', '/app.js', '/perguntas.js', '/manifest.json',
   '/icons/icon-192.png', '/icons/icon-512.png'];
 
 self.addEventListener('install', (e) => {

@@ -3,15 +3,23 @@ const W = 880, H = 480, META = 8;
 const cv = $('#cv'), cx = cv.getContext('2d');
 
 const FASES = [
-  { nome: 'Floresta Tropical', img: '/img/fase1.jpg', bons: ['🍎', '💧', '🍌'], ruins: ['🪨', '🐍'],
-    perguntas: [
-      { p: 'Qual é a maior floresta tropical do mundo?', o: ['Floresta Amazônica', 'Taiga', 'Mata de Araucárias', 'Floresta do Congo'], c: 0 },
-      { p: 'Qual gás as plantas liberam na fotossíntese?', o: ['Gás carbônico', 'Oxigênio', 'Nitrogênio', 'Hélio'], c: 1 }] },
-  { nome: 'Savana e Deserto', img: '/img/fase2.jpg', bons: ['💧', '🍉', '🥭'], ruins: ['🌵', '🦂'],
-    perguntas: [
-      { p: 'Qual destes animais é típico da savana africana?', o: ['Pinguim', 'Zebra', 'Urso-polar', 'Foca'], c: 1 },
-      { p: 'Qual é o maior deserto quente do mundo?', o: ['Saara', 'Atacama', 'Gobi', 'Kalahari'], c: 0 }] }
+  { nome: 'Floresta Tropical', img: '/img/fase1.jpg', bons: ['🍎', '💧', '🍌'], ruins: ['🪨', '🐍'], perguntas: [] },
+  { nome: 'Savana e Deserto', img: '/img/fase2.jpg', bons: ['💧', '🍉', '🥭'], ruins: ['🌵', '🦂'], perguntas: [] }
 ];
+const POR_FASE = 2;
+
+// Sorteia perguntas diferentes do banco a cada partida
+function sortearPerguntas() {
+  const pool = [...BANCO];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  FASES.forEach((f, i) => {
+    f.perguntas = pool.slice(i * POR_FASE, (i + 1) * POR_FASE)
+      .map(([p, certa, ...erradas]) => ({ p, o: [certa, ...erradas], c: 0 }));
+  });
+}
 const fundos = FASES.map((f) => { const i = new Image(); i.src = f.img; return i; });
 
 let jogador = '', est = null;
@@ -31,6 +39,7 @@ const sorte = (a) => a[Math.floor(Math.random() * a.length)];
 
 // ---------- Jogo ----------
 function novoJogo() {
+  sortearPerguntas();
   est = { fase: 0, pts: 0, vidas: 3, col: 0, objs: [], flash: 0, spawn: 0, rodando: false, ultimo: 0,
     t0: Date.now(), wolf: { x: W / 2, alvo: W / 2 } };
   $('#quiz').hidden = true;
@@ -103,7 +112,7 @@ function perguntar(i) {
   const ops = q.o.map((t, k) => ({ t, ok: k === q.c })).sort(() => Math.random() - 0.5);
   const box = $('#quiz'); box.hidden = false;
   box.innerHTML = `<div class="qcard">
-    <p class="qt">${f.nome}: pergunta ${i + 1} de ${f.perguntas.length}</p>
+    <p class="qt">Pergunta da escola ${i + 1} de ${f.perguntas.length}</p>
     <h3>${q.p}</h3>
     ${ops.map((o, k) => `<button class="op" data-k="${k}">${o.t}</button>`).join('')}
     <p id="fb"></p></div>`;
