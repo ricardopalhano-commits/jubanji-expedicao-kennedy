@@ -8,20 +8,22 @@ const NIVEL = { facil: { n: 'Fácil', pts: 50 }, medio: { n: 'Médio', pts: 75 }
 const NIVEIS = [['facil', 'facil'], ['facil', 'facil'], ['facil', 'medio'], ['medio', 'medio'], ['medio', 'medio'],
   ['medio', 'medio'], ['medio', 'dificil'], ['dificil', 'dificil'], ['dificil', 'dificil'], ['dificil', 'dificil']];
 
-// bg: qual imagem (0 = trilha, 1 = quatro biomas), zoom, foco horizontal/vertical e cor de ambiente
+// Cada fase tem um tema (cenário + perguntas). bg: imagem, zoom, foco horizontal/vertical e cor de ambiente
+const TEMA_NOME = { floresta: 'Floresta Tropical', savana: 'Savana', deserto: 'Deserto', tundra: 'Tundra e Gelo' };
 const FASES = [
-  { nome: 'Trilha da Floresta', bg: { img: 0, zoom: 1, fx: .5, fy: .5 } },
-  { nome: 'Ruínas Antigas', bg: { img: 1, zoom: 1.7, fx: 0, fy: .6 } },
-  { nome: 'Savana Dourada', bg: { img: 1, zoom: 1.7, fx: .38, fy: .6 } },
-  { nome: 'Entardecer na Savana', bg: { img: 1, zoom: 1.7, fx: .5, fy: .5, tint: 'rgba(255,120,40,.22)' } },
-  { nome: 'Pântano Sombrio', bg: { img: 1, zoom: 1.7, fx: .72, fy: .6 } },
-  { nome: 'Deserto Rochoso', bg: { img: 1, zoom: 1.7, fx: 1, fy: .6 } },
-  { nome: 'Deserto à Noite', bg: { img: 1, zoom: 1.7, fx: 1, fy: .4, tint: 'rgba(10,20,70,.5)' } },
-  { nome: 'Pântano da Meia-Noite', bg: { img: 1, zoom: 1.7, fx: .72, fy: .4, tint: 'rgba(5,10,40,.55)' } },
-  { nome: 'Selva Misteriosa', bg: { img: 0, zoom: 1.5, fx: .1, fy: .5, tint: 'rgba(0,30,10,.35)' } },
-  { nome: 'Templo Final', bg: { img: 0, zoom: 1.8, fx: .05, fy: .6, tint: 'rgba(255,200,60,.18)' } }
+  { nome: 'Floresta Tropical', tema: 'floresta', bg: { img: 'floresta', zoom: 1, fx: .5, fy: .5 } },
+  { nome: 'Savana ao Entardecer', tema: 'savana', bg: { img: 'savana', zoom: 1, fx: .5, fy: .55 } },
+  { nome: 'Deserto Dourado', tema: 'deserto', bg: { img: 'deserto', zoom: 1, fx: .5, fy: .5 } },
+  { nome: 'Tundra Ártica', tema: 'tundra', bg: { img: 'tundra', zoom: 1, fx: .5, fy: .5 } },
+  { nome: 'Floresta Profunda', tema: 'floresta', bg: { img: 'floresta', zoom: 1.35, fx: .2, fy: .5, tint: 'rgba(0,30,10,.25)' } },
+  { nome: 'Savana Dourada', tema: 'savana', bg: { img: 'savana', zoom: 1, fx: .5, fy: .1 } },
+  { nome: 'Deserto Escaldante', tema: 'deserto', bg: { img: 'deserto', zoom: 1.35, fx: .85, fy: .5, tint: 'rgba(255,90,20,.2)' } },
+  { nome: 'Tundra Noturna', tema: 'tundra', bg: { img: 'tundra', zoom: 1.35, fx: .15, fy: .5, tint: 'rgba(10,20,80,.3)' } },
+  { nome: 'Selva Misteriosa', tema: 'floresta', bg: { img: 'floresta', zoom: 1.7, fx: .85, fy: .6, tint: 'rgba(0,25,10,.4)' } },
+  { nome: 'Savana Final', tema: 'savana', bg: { img: 'savana', zoom: 1, fx: .5, fy: .95, tint: 'rgba(255,60,10,.15)' } }
 ];
-const fundos = ['/img/fase1.jpg', '/img/fase2.jpg'].map((s) => { const i = new Image(); i.src = s; return i; });
+const fundos = {};
+['floresta', 'savana', 'deserto', 'tundra'].forEach((k) => { const i = new Image(); i.src = `/img/${k}.jpg`; fundos[k] = i; });
 
 // Dificuldade do jogo: cresce com o número da fase (i) e com os erros nas perguntas (dif)
 const cfg = (i, dif) => ({
@@ -53,13 +55,19 @@ function embaralhar(a) {
   return a;
 }
 
-// Sorteia perguntas diferentes do banco a cada partida, no nível de cada fase
+// Sorteia perguntas do TEMA de cada fase, no nível da fase (se faltar, usa o banco geral)
 function sortearPerguntas() {
   const pools = {};
-  Object.keys(BANCO).forEach((k) => { pools[k] = embaralhar([...BANCO[k]]); });
+  const pegar = (tema, t) => {
+    const k = tema + '|' + t, kg = 'geral|' + t;
+    if (!pools[k]) pools[k] = embaralhar([...((TEMAS[tema] || {})[t] || [])]);
+    let q = pools[k].pop();
+    if (!q) { if (!pools[kg]) pools[kg] = embaralhar([...GERAL[t]]); q = pools[kg].pop(); }
+    return q;
+  };
   FASES.forEach((f, i) => {
     f.perguntas = NIVEIS[i].map((t) => {
-      const [p, certa, ...erradas] = pools[t].pop();
+      const [p, certa, ...erradas] = pegar(f.tema, t);
       return { p, o: [certa, ...erradas], c: 0, t };
     });
   });
@@ -75,7 +83,7 @@ function novoJogo() {
   $('#gameover').hidden = true;
   abrir('jogo');
   iniciarFase();
-  est.aviso = [{ t: `FASE 1: ${FASES[0].nome}`, c: '#f3ecd2' }]; est.avisoT = 3;
+  est.aviso = [{ t: `FASE 1: ${FASES[0].nome}`, c: '#f3ecd2' }, { t: `Perguntas sobre: ${TEMA_NOME[FASES[0].tema]}`, c: '#e0a526' }]; est.avisoT = 3.5;
 }
 
 function iniciarFase() {
@@ -156,7 +164,7 @@ function perguntar(i) {
   const ops = embaralhar(q.o.map((t, k) => ({ t, ok: k === q.c })));
   const box = $('#quiz'); box.hidden = false;
   box.innerHTML = `<div class="qcard">
-    <p class="qt">Fase ${est.fase + 1}: pergunta ${i + 1} de ${f.perguntas.length} · Nível ${nv.n} (+${nv.pts} pontos)</p>
+    <p class="qt">${TEMA_NOME[f.tema]}: pergunta ${i + 1} de ${f.perguntas.length} · Nível ${nv.n} (+${nv.pts} pontos)</p>
     <h3>${q.p}</h3>
     ${ops.map((o, k) => `<button class="op" data-k="${k}">${o.t}</button>`).join('')}
     <p id="fb"></p></div>`;
@@ -178,7 +186,7 @@ function proximaFase() {
   const delta = est.dif - est.difIni; est.difIni = est.dif;
   const feita = est.fase; est.fase++;
   if (est.fase >= FASES.length) { vitoria(); return; }
-  const linhas = [{ t: `FASE ${est.fase + 1}: ${FASES[est.fase].nome}`, c: '#f3ecd2' }];
+  const linhas = [{ t: `FASE ${est.fase + 1}: ${FASES[est.fase].nome}`, c: '#f3ecd2' }, { t: `Perguntas sobre: ${TEMA_NOME[FASES[est.fase].tema]}`, c: '#e0a526' }];
   if (delta > 0) linhas.push({ t: '! A FASE ESTÁ MAIS DIFÍCIL !', c: '#ff7a6b' });
   else if (delta < 0) linhas.push({ t: 'A FASE FICOU MAIS FÁCIL', c: '#5cc98a' });
   if ((feita + 1) % 3 === 0 && est.vidas < MAXV) { est.vidas++; linhas.push({ t: '❤️ +1 vida!', c: '#e0a526' }); }

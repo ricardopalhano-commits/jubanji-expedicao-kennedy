@@ -1,4 +1,4 @@
-const CACHE = 'jubanji-v4';
+const CACHE = 'jubanji-v5';
 const ARQUIVOS = ['/', '/index.html', '/style.css', '/app.js', '/perguntas.js', '/audio.js', '/manifest.json',
   '/icons/icon-192.png', '/icons/icon-512.png'];
 
