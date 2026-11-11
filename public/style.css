@@ -1,5 +1,6 @@
 :root{--fundo:#16241a;--painel:#22372a;--texto:#f3ecd2;--suave:#a9bda8;--cor:#e0a526;--borda:#3a5a42;--ok:#5cc98a;--erro:#e5604f}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{margin:0;font-family:'Trebuchet MS',Verdana,sans-serif;background:var(--fundo);color:var(--texto);line-height:1.5}
 .sr{position:absolute;left:-9999px}
 main{max-width:900px;margin:0 auto;padding:1rem 1rem 3rem;display:grid;gap:1.5rem}
