@@ -43,6 +43,7 @@ function novoJogo() {
   est = { fase: 0, pts: 0, vidas: 3, col: 0, objs: [], flash: 0, spawn: 0, rodando: false, ultimo: 0,
     t0: Date.now(), wolf: { x: W / 2, alvo: W / 2 } };
   $('#quiz').hidden = true;
+  $('#gameover').hidden = true;
   abrir('jogo');
   iniciarFase();
 }
@@ -133,8 +134,9 @@ function proximaFase() {
 // ---------- Fim de jogo ----------
 function derrota() {
   est.rodando = false;
-  $('#imgfim').hidden = true; abrir('fim');
-  $('#msg').textContent = `${jogador}, o lobo ficou sem vidas. Tente de novo!`;
+  $('#gotxt').textContent = `${jogador}, as 3 vidas acabaram na fase ${est.fase + 1} e você fez ${est.pts} pontos. Só expedições completas entram no ranking.`;
+  $('#gameover').hidden = false;
+  $('#retry').focus();
 }
 
 async function vitoria() {
@@ -174,6 +176,8 @@ $('#inicio').addEventListener('submit', (e) => {
   cv.scrollIntoView({ behavior: 'smooth', block: 'center' });
 });
 $('#again').addEventListener('click', novoJogo);
+$('#retry').addEventListener('click', novoJogo);
+$('#voltar').addEventListener('click', () => { est = null; $('#gameover').hidden = true; abrir('menu'); scrollTo(0, 0); });
 
 // ---------- Ranking (consultar, editar, excluir) ----------
 async function carregar() {
