@@ -130,6 +130,7 @@ function desenhar() {
     cx.drawImage(img, -(w - W) * b.fx, -(h - H) * b.fy, w, h);
   } else { cx.fillStyle = '#22372a'; cx.fillRect(0, 0, W, H); }
   if (b.tint) { cx.fillStyle = b.tint; cx.fillRect(0, 0, W, H); }
+  cx.fillStyle = '#ffffff';   // cor opaca: o emoji herda a transparência da última cor usada
 
   cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.font = '40px serif';
   est.objs.forEach((o) => cx.fillText(o.e, o.x, o.y));
