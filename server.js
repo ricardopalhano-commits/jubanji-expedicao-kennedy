@@ -14,59 +14,51 @@ const pool = new Pool({
 
 async function iniciarBanco() {
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS tarefas (
+    CREATE TABLE IF NOT EXISTS expedicoes (
       id SERIAL PRIMARY KEY,
-      titulo TEXT NOT NULL,
-      descricao TEXT DEFAULT '',
-      prioridade TEXT NOT NULL DEFAULT 'media',
-      concluida BOOLEAN NOT NULL DEFAULT FALSE,
+      jogador TEXT NOT NULL,
+      pontos INTEGER NOT NULL,
+      segundos INTEGER NOT NULL,
       criada_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )`);
 }
 
-const PRIORIDADES = ['baixa', 'media', 'alta'];
-const validar = (b) => {
-  if (!b.titulo || !b.titulo.trim()) return 'Informe um título.';
-  if (!PRIORIDADES.includes(b.prioridade)) return 'Prioridade inválida.';
-  return null;
-};
+const nomeOk = (n) => typeof n === 'string' && n.trim() && n.trim().length <= 30;
 const tratar = (fn) => (req, res) => fn(req, res).catch((e) => {
   console.error(e); res.status(500).json({ erro: 'Erro no servidor.' });
 });
 
-// Consultar
-app.get('/api/tarefas', tratar(async (req, res) => {
-  const { rows } = await pool.query('SELECT * FROM tarefas ORDER BY concluida, id DESC');
+// Consultar ranking (mais pontos primeiro; empate: mais rápido)
+app.get('/api/expedicoes', tratar(async (req, res) => {
+  const { rows } = await pool.query('SELECT * FROM expedicoes ORDER BY pontos DESC, segundos, id LIMIT 50');
   res.json(rows);
 }));
 
-// Cadastrar
-app.post('/api/tarefas', tratar(async (req, res) => {
-  const erro = validar(req.body);
-  if (erro) return res.status(400).json({ erro });
-  const { titulo, descricao = '', prioridade } = req.body;
+// Cadastrar pontuação
+app.post('/api/expedicoes', tratar(async (req, res) => {
+  const { jogador, pontos, segundos } = req.body;
+  if (!nomeOk(jogador)) return res.status(400).json({ erro: 'Informe um nome de até 30 letras.' });
+  if (!Number.isInteger(pontos) || pontos < 0 || !Number.isInteger(segundos) || segundos < 0)
+    return res.status(400).json({ erro: 'Pontuação inválida.' });
   const { rows } = await pool.query(
-    'INSERT INTO tarefas (titulo, descricao, prioridade) VALUES ($1,$2,$3) RETURNING *',
-    [titulo.trim(), descricao.trim(), prioridade]);
+    'INSERT INTO expedicoes (jogador, pontos, segundos) VALUES ($1,$2,$3) RETURNING *',
+    [jogador.trim(), pontos, segundos]);
   res.status(201).json(rows[0]);
 }));
 
-// Editar
-app.put('/api/tarefas/:id', tratar(async (req, res) => {
-  const erro = validar(req.body);
-  if (erro) return res.status(400).json({ erro });
-  const { titulo, descricao = '', prioridade, concluida = false } = req.body;
-  const { rows } = await pool.query(
-    'UPDATE tarefas SET titulo=$1, descricao=$2, prioridade=$3, concluida=$4 WHERE id=$5 RETURNING *',
-    [titulo.trim(), descricao.trim(), prioridade, !!concluida, req.params.id]);
-  if (!rows.length) return res.status(404).json({ erro: 'Tarefa não encontrada.' });
+// Editar nome do jogador
+app.put('/api/expedicoes/:id', tratar(async (req, res) => {
+  if (!nomeOk(req.body.jogador)) return res.status(400).json({ erro: 'Informe um nome de até 30 letras.' });
+  const { rows } = await pool.query('UPDATE expedicoes SET jogador=$1 WHERE id=$2 RETURNING *',
+    [req.body.jogador.trim(), req.params.id]);
+  if (!rows.length) return res.status(404).json({ erro: 'Registro não encontrado.' });
   res.json(rows[0]);
 }));
 
-// Excluir
-app.delete('/api/tarefas/:id', tratar(async (req, res) => {
-  const { rowCount } = await pool.query('DELETE FROM tarefas WHERE id=$1', [req.params.id]);
-  if (!rowCount) return res.status(404).json({ erro: 'Tarefa não encontrada.' });
+// Excluir pontuação
+app.delete('/api/expedicoes/:id', tratar(async (req, res) => {
+  const { rowCount } = await pool.query('DELETE FROM expedicoes WHERE id=$1', [req.params.id]);
+  if (!rowCount) return res.status(404).json({ erro: 'Registro não encontrado.' });
   res.status(204).end();
 }));
 

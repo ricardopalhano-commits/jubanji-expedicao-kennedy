@@ -1,7 +1,7 @@
 {
-  "name": "tarefas-pwa",
+  "name": "jubanji-pwa",
   "version": "1.0.0",
-  "description": "PWA de controle de tarefas com CRUD e PostgreSQL",
+  "description": "Jubanji: jogo 2D educativo PWA com ranking em PostgreSQL",
   "main": "server.js",
   "scripts": { "start": "node server.js" },
   "engines": { "node": ">=18" },

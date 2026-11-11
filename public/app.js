@@ -1,109 +1,207 @@
 const $ = (s) => document.querySelector(s);
-let tarefas = [];
-let filtro = 'todas';
+const W = 880, H = 480, META = 8;
+const cv = $('#cv'), cx = cv.getContext('2d');
+
+const FASES = [
+  { nome: 'Floresta Tropical', img: '/img/fase1.jpg', bons: ['🍎', '💧', '🍌'], ruins: ['🪨', '🐍'],
+    perguntas: [
+      { p: 'Qual é a maior floresta tropical do mundo?', o: ['Floresta Amazônica', 'Taiga', 'Mata de Araucárias', 'Floresta do Congo'], c: 0 },
+      { p: 'Qual gás as plantas liberam na fotossíntese?', o: ['Gás carbônico', 'Oxigênio', 'Nitrogênio', 'Hélio'], c: 1 }] },
+  { nome: 'Savana e Deserto', img: '/img/fase2.jpg', bons: ['💧', '🍉', '🥭'], ruins: ['🌵', '🦂'],
+    perguntas: [
+      { p: 'Qual destes animais é típico da savana africana?', o: ['Pinguim', 'Zebra', 'Urso-polar', 'Foca'], c: 1 },
+      { p: 'Qual é o maior deserto quente do mundo?', o: ['Saara', 'Atacama', 'Gobi', 'Kalahari'], c: 0 }] }
+];
+const fundos = FASES.map((f) => { const i = new Image(); i.src = f.img; return i; });
+
+let jogador = '', est = null;
+const keys = { l: false, r: false };
 
 async function api(url, opcoes = {}) {
   const r = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...opcoes });
   if (r.status === 204) return null;
-  const dados = await r.json();
-  if (!r.ok) throw new Error(dados.erro || 'Falha na requisição.');
-  return dados;
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.erro || 'Falha na requisição.');
+  return d;
+}
+const esc = (t) => { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; };
+const fmt = (s) => (s >= 60 ? `${Math.floor(s / 60)}min ${s % 60}s` : `${s}s`);
+const abrir = (id) => ['menu', 'jogo', 'fim'].forEach((x) => { $('#' + x).hidden = x !== id; });
+const sorte = (a) => a[Math.floor(Math.random() * a.length)];
+
+// ---------- Jogo ----------
+function novoJogo() {
+  est = { fase: 0, pts: 0, vidas: 3, col: 0, objs: [], flash: 0, spawn: 0, rodando: false, ultimo: 0,
+    t0: Date.now(), wolf: { x: W / 2, alvo: W / 2 } };
+  $('#quiz').hidden = true;
+  abrir('jogo');
+  iniciarFase();
 }
 
-async function carregar() {
-  try { tarefas = await api('/api/tarefas'); desenhar(); }
-  catch (e) { $('#lista').innerHTML = '<li class="vazio">Sem conexão com o servidor. Tente novamente.</li>'; }
+function iniciarFase() {
+  est.col = 0; est.objs = []; est.rodando = true; est.ultimo = performance.now();
+  requestAnimationFrame(loop);
 }
 
-function esc(t) {
-  const d = document.createElement('div'); d.textContent = t; return d.innerHTML;
+function loop(t) {
+  if (!est || !est.rodando) return;
+  const dt = Math.min((t - est.ultimo) / 1000, 0.05);
+  est.ultimo = t;
+  atualizar(dt); desenhar();
+  requestAnimationFrame(loop);
+}
+
+function atualizar(dt) {
+  const w = est.wolf, f = FASES[est.fase];
+  if (keys.l) w.alvo = w.x - 300; else if (keys.r) w.alvo = w.x + 300;
+  w.alvo = Math.max(40, Math.min(W - 40, w.alvo));
+  const d = w.alvo - w.x;
+  w.x += Math.sign(d) * Math.min(Math.abs(d), 560 * dt);
+
+  est.spawn -= dt;
+  if (est.spawn <= 0) {
+    est.spawn = 0.7;
+    const bom = Math.random() < 0.65;
+    est.objs.push({ x: 40 + Math.random() * (W - 80), y: -30, v: 130 + Math.random() * 90 + est.fase * 40,
+      bom, e: sorte(bom ? f.bons : f.ruins) });
+  }
+  est.flash = Math.max(0, est.flash - dt);
+  est.objs = est.objs.filter((o) => {
+    o.y += o.v * dt;
+    if (Math.abs(o.x - w.x) < 42 && Math.abs(o.y - (H - 60)) < 44) {
+      if (o.bom) { est.col++; est.pts += 10; } else { est.vidas--; est.flash = 0.3; }
+      return false;
+    }
+    return o.y < H + 40;
+  });
+
+  if (est.vidas <= 0) derrota();
+  else if (est.col >= META) { est.rodando = false; perguntar(0); }
 }
 
 function desenhar() {
-  const pend = tarefas.filter((t) => !t.concluida).length;
-  $('#resumo').textContent = tarefas.length
-    ? `${pend} pendente(s) de ${tarefas.length}` : 'Nenhuma tarefa ainda';
-  const vis = tarefas.filter((t) =>
-    filtro === 'todas' || (filtro === 'pendentes' ? !t.concluida : t.concluida));
-  $('#lista').innerHTML = vis.length ? vis.map((t) => `
-    <li class="${t.prioridade} ${t.concluida ? 'feita' : ''}">
-      <input type="checkbox" data-a="check" data-id="${t.id}" ${t.concluida ? 'checked' : ''} aria-label="Concluir">
-      <div>
-        <div class="t">${esc(t.titulo)}</div>
-        ${t.descricao ? `<p class="d">${esc(t.descricao)}</p>` : ''}
-        <span class="m">Prioridade ${t.prioridade} · ${new Date(t.criada_em).toLocaleDateString('pt-BR')}</span>
-      </div>
-      <div class="botoes">
-        <button class="sec" data-a="editar" data-id="${t.id}">Editar</button>
-        <button class="ex" data-a="excluir" data-id="${t.id}">Excluir</button>
-      </div>
-    </li>`).join('') : '<li class="vazio">Nada por aqui. Adicione uma tarefa acima.</li>';
+  const img = fundos[est.fase];
+  if (img.complete && img.naturalWidth) {
+    const r = Math.max(W / img.naturalWidth, H / img.naturalHeight);
+    const w = img.naturalWidth * r, h = img.naturalHeight * r;
+    cx.drawImage(img, (W - w) / 2, (H - h) / 2, w, h);
+  } else { cx.fillStyle = '#22372a'; cx.fillRect(0, 0, W, H); }
+
+  cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.font = '40px serif';
+  est.objs.forEach((o) => cx.fillText(o.e, o.x, o.y));
+  cx.font = '64px serif'; cx.fillText('🐺', est.wolf.x, H - 60);
+
+  if (est.flash > 0) { cx.fillStyle = 'rgba(229,96,79,.35)'; cx.fillRect(0, 0, W, H); }
+  cx.fillStyle = 'rgba(0,0,0,.6)'; cx.fillRect(0, 0, W, 38);
+  cx.fillStyle = '#f3ecd2'; cx.font = 'bold 20px sans-serif'; cx.textAlign = 'left';
+  cx.fillText(`${FASES[est.fase].nome}     ❤️ ${est.vidas}     🎒 ${est.col}/${META}     ⭐ ${est.pts}`, 12, 20);
 }
 
-function limparForm() {
-  $('#form').reset(); $('#id').value = '';
-  $('#form-titulo').textContent = 'Nova tarefa';
-  $('#salvar').textContent = 'Adicionar tarefa';
-  $('#cancelar').hidden = true; $('#erro').textContent = '';
+// ---------- Perguntas ----------
+function perguntar(i) {
+  const f = FASES[est.fase], q = f.perguntas[i];
+  const ops = q.o.map((t, k) => ({ t, ok: k === q.c })).sort(() => Math.random() - 0.5);
+  const box = $('#quiz'); box.hidden = false;
+  box.innerHTML = `<div class="qcard">
+    <p class="qt">${f.nome}: pergunta ${i + 1} de ${f.perguntas.length}</p>
+    <h3>${q.p}</h3>
+    ${ops.map((o, k) => `<button class="op" data-k="${k}">${o.t}</button>`).join('')}
+    <p id="fb"></p></div>`;
+  box.querySelectorAll('.op').forEach((b) => b.onclick = () => {
+    box.querySelectorAll('.op').forEach((x) => { x.disabled = true; if (ops[x.dataset.k].ok) x.classList.add('certa'); });
+    if (ops[b.dataset.k].ok) { est.pts += 50; $('#fb').textContent = 'Correto! +50 pontos'; }
+    else { b.classList.add('errada'); $('#fb').textContent = 'Resposta errada. A certa ficou em verde.'; }
+    setTimeout(() => (i + 1 < f.perguntas.length ? perguntar(i + 1) : proximaFase()), 1500);
+  });
 }
 
-$('#form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const id = $('#id').value;
-  const corpo = {
-    titulo: $('#titulo').value, descricao: $('#descricao').value, prioridade: $('#prioridade').value
-  };
+function proximaFase() {
+  $('#quiz').hidden = true;
+  est.fase++;
+  if (est.fase >= FASES.length) vitoria(); else iniciarFase();
+}
+
+// ---------- Fim de jogo ----------
+function derrota() {
+  est.rodando = false;
+  $('#imgfim').hidden = true; abrir('fim');
+  $('#msg').textContent = `${jogador}, o lobo ficou sem vidas. Tente de novo!`;
+}
+
+async function vitoria() {
+  est.pts += est.vidas * 20;
+  const seg = Math.round((Date.now() - est.t0) / 1000);
+  $('#imgfim').hidden = false; abrir('fim');
+  let txt = `Parabéns, ${jogador}! Você completou a expedição com ${est.pts} pontos em ${fmt(seg)}.`;
+  $('#msg').textContent = txt;
   try {
-    if (id) {
-      const atual = tarefas.find((t) => t.id == id);
-      await api(`/api/tarefas/${id}`, { method: 'PUT', body: JSON.stringify({ ...corpo, concluida: atual.concluida }) });
-    } else {
-      await api('/api/tarefas', { method: 'POST', body: JSON.stringify(corpo) });
-    }
-    limparForm(); await carregar();
-  } catch (err) { $('#erro').textContent = err.message; }
+    await api('/api/expedicoes', { method: 'POST', body: JSON.stringify({ jogador, pontos: est.pts, segundos: seg }) });
+    $('#msg').textContent = txt + ' Pontuação salva no ranking.';
+    carregar();
+  } catch (e) { $('#msg').textContent = txt + ' Não foi possível salvar: ' + e.message; }
+}
+
+// ---------- Controles ----------
+function mover(e) {
+  if (!est || !est.rodando) return;
+  const r = cv.getBoundingClientRect();
+  est.wolf.alvo = (e.clientX - r.left) / r.width * W;
+}
+cv.addEventListener('pointermove', mover);
+cv.addEventListener('pointerdown', mover);
+addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowLeft' || e.key === 'a') keys.l = true;
+  if (e.key === 'ArrowRight' || e.key === 'd') keys.r = true;
+  if (est && est.rodando && e.key.startsWith('Arrow')) e.preventDefault();
+});
+addEventListener('keyup', (e) => {
+  if (e.key === 'ArrowLeft' || e.key === 'a') keys.l = false;
+  if (e.key === 'ArrowRight' || e.key === 'd') keys.r = false;
+  if (est) est.wolf.alvo = est.wolf.x;
 });
 
-$('#cancelar').addEventListener('click', limparForm);
+$('#inicio').addEventListener('submit', (e) => {
+  e.preventDefault(); jogador = $('#nome').value.trim(); novoJogo();
+  cv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+});
+$('#again').addEventListener('click', novoJogo);
+
+// ---------- Ranking (consultar, editar, excluir) ----------
+async function carregar() {
+  try {
+    const p = await api('/api/expedicoes');
+    $('#lista').innerHTML = p.length ? p.map((x, i) => `
+      <li>
+        <span class="n">${i + 1}º ${esc(x.jogador)}</span>
+        <span class="m">${x.pontos} pontos · ${fmt(x.segundos)}</span>
+        <span class="bt">
+          <button class="sec" data-a="editar" data-id="${x.id}">Editar nome</button>
+          <button class="ex" data-a="excluir" data-id="${x.id}">Excluir</button>
+        </span>
+      </li>`).join('') : '<li class="vazio">Nenhuma expedição concluída ainda. Seja o primeiro!</li>';
+  } catch (e) { $('#lista').innerHTML = '<li class="vazio">Não foi possível carregar o ranking.</li>'; }
+}
 
 $('#lista').addEventListener('click', async (e) => {
   const b = e.target.closest('[data-a]'); if (!b) return;
-  const t = tarefas.find((x) => x.id == b.dataset.id);
-  if (b.dataset.a === 'editar') {
-    $('#id').value = t.id; $('#titulo').value = t.titulo;
-    $('#descricao').value = t.descricao; $('#prioridade').value = t.prioridade;
-    $('#form-titulo').textContent = 'Editar tarefa';
-    $('#salvar').textContent = 'Salvar alterações';
-    $('#cancelar').hidden = false; $('#titulo').focus();
-  } else if (b.dataset.a === 'excluir') {
-    if (!confirm('Excluir esta tarefa?')) return;
-    await api(`/api/tarefas/${t.id}`, { method: 'DELETE' }); carregar();
-  }
+  try {
+    if (b.dataset.a === 'editar') {
+      const nome = prompt('Novo nome do jogador:');
+      if (nome && nome.trim()) await api(`/api/expedicoes/${b.dataset.id}`, { method: 'PUT', body: JSON.stringify({ jogador: nome }) });
+    } else if (confirm('Excluir esta pontuação?')) {
+      await api(`/api/expedicoes/${b.dataset.id}`, { method: 'DELETE' });
+    }
+    carregar();
+  } catch (err) { alert(err.message); }
 });
 
-$('#lista').addEventListener('change', async (e) => {
-  if (e.target.dataset.a !== 'check') return;
-  const t = tarefas.find((x) => x.id == e.target.dataset.id);
-  await api(`/api/tarefas/${t.id}`, { method: 'PUT', body: JSON.stringify({ ...t, concluida: e.target.checked }) });
-  carregar();
-});
-
-document.querySelectorAll('.filtros button').forEach((b) => b.addEventListener('click', () => {
-  filtro = b.dataset.f;
-  document.querySelectorAll('.filtros button').forEach((x) => x.classList.toggle('on', x === b));
-  desenhar();
-}));
-
-// PWA: service worker e botão de instalação
+// ---------- PWA ----------
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/service-worker.js');
 let evInstalar;
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault(); evInstalar = e; $('#instalar').hidden = false;
-});
+addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); evInstalar = e; $('#instalar').hidden = false; });
 $('#instalar').addEventListener('click', async () => {
   if (!evInstalar) return;
-  evInstalar.prompt(); await evInstalar.userChoice;
-  evInstalar = null; $('#instalar').hidden = true;
+  evInstalar.prompt(); await evInstalar.userChoice; evInstalar = null; $('#instalar').hidden = true;
 });
 
 carregar();

@@ -1,4 +1,4 @@
-const CACHE = 'tarefas-v1';
+const CACHE = 'jubanji-v1';
 const ARQUIVOS = ['/', '/index.html', '/style.css', '/app.js', '/manifest.json',
   '/icons/icon-192.png', '/icons/icon-512.png'];
 
@@ -13,15 +13,14 @@ self.addEventListener('activate', (e) => {
   self.clients.claim();
 });
 
+// Rede primeiro (sempre a versão nova); offline usa o cache (inclui as imagens já vistas)
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
-  const url = new URL(req.url);
-  // API: rede primeiro (dados atuais); arquivos: cache primeiro
-  if (url.pathname.startsWith('/api/')) {
-    e.respondWith(fetch(req).catch(() => new Response(
-      JSON.stringify({ erro: 'Sem conexão.' }), { status: 503, headers: { 'Content-Type': 'application/json' } })));
-    return;
-  }
-  e.respondWith(caches.match(req).then((r) => r || fetch(req)));
+  if (new URL(req.url).pathname.startsWith('/api/')) return;
+  e.respondWith(fetch(req).then((r) => {
+    const copia = r.clone();
+    caches.open(CACHE).then((c) => c.put(req, copia));
+    return r;
+  }).catch(() => caches.match(req)));
 });

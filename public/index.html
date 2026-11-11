@@ -3,54 +3,46 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Tarefas</title>
-  <meta name="theme-color" content="#1f4e5f">
+  <title>Jubanji: Expedição dos Biomas</title>
+  <meta name="theme-color" content="#16241a">
   <link rel="manifest" href="/manifest.json">
   <link rel="icon" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <header>
-    <h1>Tarefas</h1>
-    <p id="resumo" aria-live="polite"></p>
-    <button id="instalar" hidden>Instalar app</button>
-  </header>
-
+  <h1 class="sr">Jubanji: Expedição dos Biomas</h1>
   <main>
-    <form id="form" autocomplete="off">
-      <h2 id="form-titulo">Nova tarefa</h2>
-      <input type="hidden" id="id">
-      <label>Título
-        <input id="titulo" required maxlength="120" placeholder="Ex.: Entregar trabalho de Web">
-      </label>
-      <label>Descrição
-        <textarea id="descricao" rows="2" placeholder="Detalhes (opcional)"></textarea>
-      </label>
-      <label>Prioridade
-        <select id="prioridade">
-          <option value="baixa">Baixa</option>
-          <option value="media" selected>Média</option>
-          <option value="alta">Alta</option>
-        </select>
-      </label>
-      <div class="acoes">
-        <button type="submit" id="salvar">Adicionar tarefa</button>
-        <button type="button" id="cancelar" class="sec" hidden>Cancelar edição</button>
-      </div>
-      <p id="erro" role="alert"></p>
-    </form>
+    <section id="menu">
+      <img class="banner" src="/img/menu.jpg" alt="Mundo Jubanji: biomas do jogo">
+      <form id="inicio">
+        <label>Nome do explorador
+          <input id="nome" required maxlength="30" placeholder="Ex.: Ricardo">
+        </label>
+        <button type="submit">Começar expedição</button>
+      </form>
+      <p class="como">Mova o lobo com as setas ← → (ou arrastando o dedo). Pegue 8 suprimentos em cada fase, desvie dos perigos e responda às perguntas da escola!</p>
+      <button id="instalar" class="sec" hidden>Instalar app</button>
+    </section>
 
-    <section>
-      <div class="filtros" role="group" aria-label="Filtrar">
-        <button data-f="todas" class="on">Todas</button>
-        <button data-f="pendentes">Pendentes</button>
-        <button data-f="concluidas">Concluídas</button>
+    <section id="jogo" hidden>
+      <div class="palco">
+        <canvas id="cv" width="880" height="480" aria-label="Área do jogo"></canvas>
+        <div id="quiz" hidden></div>
       </div>
-      <ul id="lista"></ul>
+    </section>
+
+    <section id="fim" hidden>
+      <img id="imgfim" class="banner" src="/img/vitoria.jpg" alt="Vitória na expedição">
+      <p id="msg" role="status"></p>
+      <button id="again">Jogar de novo</button>
+    </section>
+
+    <section id="rank">
+      <h2>Ranking dos exploradores</h2>
+      <ol id="lista"></ol>
     </section>
   </main>
-
   <script src="/app.js"></script>
 </body>
 </html>
