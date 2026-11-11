@@ -68,6 +68,7 @@ function sortearPerguntas() {
 // ---------- Jogo ----------
 function novoJogo() {
   sortearPerguntas();
+  Som.musica(true);
   est = { fase: 0, pts: 0, vidas: 3, col: 0, meta: 6, objs: [], flash: 0, spawn: 0, dif: 0, difIni: 0,
     aviso: null, avisoT: 0, rodando: false, ultimo: 0, t0: Date.now(), wolf: { x: W / 2, alvo: W / 2 } };
   $('#quiz').hidden = true;
@@ -161,6 +162,7 @@ function perguntar(i) {
   box.querySelectorAll('.op').forEach((b) => b.onclick = () => {
     box.querySelectorAll('.op').forEach((x) => { x.disabled = true; if (ops[x.dataset.k].ok) x.classList.add('certa'); });
     const certa = ops[b.dataset.k].ok, ultima = est.fase + 1 >= FASES.length;
+    if (certa) Som.plim(); else Som.errado();
     if (certa) { est.pts += nv.pts; est.dif = Math.max(-3, est.dif - 1); }
     else { b.classList.add('errada'); est.dif = Math.min(4, est.dif + 1); }
     $('#fb').innerHTML = (certa ? `Correto! +${nv.pts} pontos` : 'Resposta errada. A certa ficou em verde.') +
@@ -186,12 +188,14 @@ function proximaFase() {
 // ---------- Fim de jogo ----------
 function derrota() {
   est.rodando = false;
+  Som.musica(false);
   $('#gotxt').textContent = `${jogador}, as vidas acabaram na fase ${est.fase + 1} de ${FASES.length} e você fez ${est.pts} pontos. Só expedições completas entram no ranking.`;
   $('#gameover').hidden = false;
   $('#retry').focus();
 }
 
 async function vitoria() {
+  Som.musica(false);
   est.pts += est.vidas * 20;
   const seg = Math.round((Date.now() - est.t0) / 1000);
   $('#imgfim').hidden = false; abrir('fim');
@@ -229,7 +233,7 @@ $('#inicio').addEventListener('submit', (e) => {
 });
 $('#again').addEventListener('click', novoJogo);
 $('#retry').addEventListener('click', novoJogo);
-$('#voltar').addEventListener('click', () => { est = null; $('#gameover').hidden = true; abrir('menu'); scrollTo(0, 0); });
+$('#voltar').addEventListener('click', () => { est = null; Som.musica(false); $('#gameover').hidden = true; abrir('menu'); scrollTo(0, 0); });
 
 // ---------- Ranking (consultar, editar, excluir) ----------
 async function carregar() {
