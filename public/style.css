@@ -30,3 +30,4 @@ li:first-child{border-color:var(--cor)}
 .bt button{padding:.3rem .55rem;font-size:.8rem}
 .bt .ex{background:transparent;color:var(--erro);border:1px solid var(--erro)}
 .vazio{color:var(--suave)}
+.rotulo{font-size:1.4rem;font-weight:bold;color:var(--cor)}
