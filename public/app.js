@@ -40,7 +40,7 @@ const sorte = (a) => a[Math.floor(Math.random() * a.length)];
 // ---------- Jogo ----------
 function novoJogo() {
   sortearPerguntas();
-  est = { fase: 0, pts: 0, vidas: 3, col: 0, objs: [], flash: 0, spawn: 0, rodando: false, ultimo: 0,
+  est = { fase: 0, pts: 0, vidas: 3, col: 0, objs: [], flash: 0, spawn: 0, dif: 0, difIni: 0, aviso: null, avisoT: 0, rodando: false, ultimo: 0,
     t0: Date.now(), wolf: { x: W / 2, alvo: W / 2 } };
   $('#quiz').hidden = true;
   $('#gameover').hidden = true;
@@ -70,12 +70,13 @@ function atualizar(dt) {
 
   est.spawn -= dt;
   if (est.spawn <= 0) {
-    est.spawn = 0.7;
-    const bom = Math.random() < 0.65;
-    est.objs.push({ x: 40 + Math.random() * (W - 80), y: -30, v: 130 + Math.random() * 90 + est.fase * 40,
+    est.spawn = Math.max(0.35, Math.min(1.1, 0.7 - est.dif * 0.08));
+    const bom = Math.random() < Math.max(0.4, Math.min(0.8, 0.65 - est.dif * 0.06));
+    est.objs.push({ x: 40 + Math.random() * (W - 80), y: -30, v: Math.max(80, 130 + Math.random() * 90 + est.fase * 40 + est.dif * 30),
       bom, e: sorte(bom ? f.bons : f.ruins) });
   }
   est.flash = Math.max(0, est.flash - dt);
+  est.avisoT = Math.max(0, est.avisoT - dt);
   est.objs = est.objs.filter((o) => {
     o.y += o.v * dt;
     if (Math.abs(o.x - w.x) < 42 && Math.abs(o.y - (H - 60)) < 44) {
@@ -88,6 +89,8 @@ function atualizar(dt) {
   if (est.vidas <= 0) derrota();
   else if (est.col >= META) { est.rodando = false; perguntar(0); }
 }
+
+const rotuloDif = (d) => (d <= -2 ? 'Muito fácil' : d === -1 ? 'Fácil' : d === 0 ? 'Normal' : d === 1 ? 'Difícil' : 'Muito difícil');
 
 function desenhar() {
   const img = fundos[est.fase];
@@ -105,6 +108,11 @@ function desenhar() {
   cx.fillStyle = 'rgba(0,0,0,.6)'; cx.fillRect(0, 0, W, 38);
   cx.fillStyle = '#f3ecd2'; cx.font = 'bold 20px sans-serif'; cx.textAlign = 'left';
   cx.fillText(`${FASES[est.fase].nome}     ❤️ ${est.vidas}     🎒 ${est.col}/${META}     ⭐ ${est.pts}`, 12, 20);
+  cx.textAlign = 'right'; cx.fillText('Dificuldade: ' + rotuloDif(est.dif), W - 12, 20);
+  if (est.avisoT > 0 && est.aviso) {
+    cx.textAlign = 'center'; cx.fillStyle = 'rgba(0,0,0,.78)'; cx.fillRect(W / 2 - 300, 70, 600, 52);
+    cx.fillStyle = est.aviso.c; cx.font = 'bold 26px sans-serif'; cx.fillText(est.aviso.t, W / 2, 97);
+  }
 }
 
 // ---------- Perguntas ----------
@@ -119,16 +127,27 @@ function perguntar(i) {
     <p id="fb"></p></div>`;
   box.querySelectorAll('.op').forEach((b) => b.onclick = () => {
     box.querySelectorAll('.op').forEach((x) => { x.disabled = true; if (ops[x.dataset.k].ok) x.classList.add('certa'); });
-    if (ops[b.dataset.k].ok) { est.pts += 50; $('#fb').textContent = 'Correto! +50 pontos'; }
-    else { b.classList.add('errada'); $('#fb').textContent = 'Resposta errada. A certa ficou em verde.'; }
+    const certa = ops[b.dataset.k].ok, ultima = est.fase + 1 >= FASES.length;
+    if (certa) { est.pts += 50; est.dif = Math.max(-3, est.dif - 1); }
+    else { b.classList.add('errada'); est.dif = Math.min(4, est.dif + 1); }
+    $('#fb').innerHTML = (certa ? 'Correto! +50 pontos' : 'Resposta errada. A certa ficou em verde.') +
+      (ultima ? '' : certa ? '<br><span class="dif-facil">✅ A fase ficou mais fácil!</span>'
+                           : '<br><span class="dif-dificil">⚠️ ! A fase está mais difícil !</span>');
     setTimeout(() => (i + 1 < f.perguntas.length ? perguntar(i + 1) : proximaFase()), 1500);
   });
 }
 
 function proximaFase() {
   $('#quiz').hidden = true;
+  const delta = est.dif - est.difIni; est.difIni = est.dif;
   est.fase++;
-  if (est.fase >= FASES.length) vitoria(); else iniciarFase();
+  if (est.fase >= FASES.length) vitoria();
+  else {
+    iniciarFase();
+    est.aviso = delta > 0 ? { t: '! A FASE ESTÁ MAIS DIFÍCIL !', c: '#ff7a6b' }
+      : delta < 0 ? { t: 'A FASE FICOU MAIS FÁCIL', c: '#5cc98a' } : null;
+    est.avisoT = 3.5;
+  }
 }
 
 // ---------- Fim de jogo ----------

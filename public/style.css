@@ -35,3 +35,5 @@ li:first-child{border-color:var(--cor)}
 #gameover h2{margin:0;font-size:clamp(2.2rem,9vw,4rem);letter-spacing:.08em;color:var(--erro)}
 #gameover p{margin:0 0 .5rem;max-width:46ch}
 .acoes{display:flex;gap:.6rem;flex-wrap:wrap;justify-content:center}
+#fb{min-height:3.2em}
+.dif-facil{color:var(--ok)}.dif-dificil{color:var(--erro)}
